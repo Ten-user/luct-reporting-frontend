@@ -46,7 +46,7 @@ export default function StudentCourses() {
 
   return (
     <div>
-      <h3>📘 Available Courses</h3>
+      <h3>Available Courses</h3>
       <table className="table table-striped mb-4">
         <thead>
           <tr>
@@ -85,7 +85,7 @@ export default function StudentCourses() {
         </tbody>
       </table>
 
-      <h3>🎓 My Enrolled Courses</h3>
+      <h3>My Enrolled Courses</h3>
       <ul className="list-group">
         {myCourses.map((c) => (
           <li key={c.id} className="list-group-item">

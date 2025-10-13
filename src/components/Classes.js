@@ -21,7 +21,7 @@ export default function Classes() {
 
   return (
     <div>
-      <h3>📚 My Classes</h3>
+      <h3>My Classes</h3>
 
       {/* 🔍 Search bar */}
       <div className="mb-3">

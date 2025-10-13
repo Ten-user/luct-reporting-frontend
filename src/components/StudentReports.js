@@ -27,7 +27,7 @@ export default function StudentReports() {
 
   return (
     <div>
-      <h3 className="mb-4">📘 My Reports</h3>
+      <h3 className="mb-4">My Reports</h3>
       <table className="table table-striped">
         <thead>
           <tr>

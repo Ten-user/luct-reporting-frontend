@@ -26,7 +26,7 @@ export default function Monitoring() {
 
   return (
     <div>
-      <h3>📊 Monitoring Dashboard</h3>
+      <h3>Monitoring Dashboard</h3>
 
       {/* 🔍 Search box */}
       <div className="mb-3">

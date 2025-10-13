@@ -100,7 +100,7 @@ export default function Courses() {
 
   return (
     <div>
-      <h3>📘 Courses</h3>
+      <h3>Courses</h3>
 
       {/* 🔍 Search bar */}
       <div className="mb-3">

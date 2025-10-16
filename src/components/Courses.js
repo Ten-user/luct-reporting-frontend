@@ -2,10 +2,12 @@ import React, { useEffect, useState } from 'react';
 import API from '../api';
 
 export default function Courses() {
-  const [courses, setCourses] = useState([]);
+  const [availableCourses, setAvailableCourses] = useState([]);
   const [myCourses, setMyCourses] = useState([]);
+  const [allCourses, setAllCourses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+
   const role = localStorage.getItem('role');
 
   const [form, setForm] = useState({
@@ -20,18 +22,22 @@ export default function Courses() {
 
   // Fetch courses on mount
   useEffect(() => {
-    fetchCourses();
-    if (role === 'student') fetchMyCourses();
+    if (role === 'student') {
+      fetchAvailableCourses();
+      fetchMyCourses();
+    } else {
+      fetchAllCourses();
+    }
   }, []);
 
-  // Fetch all courses
-  async function fetchCourses() {
+  // Fetch available courses for students
+  async function fetchAvailableCourses() {
     setLoading(true);
     try {
-      const res = await API.get('/courses');
-      setCourses(res.data || []);
+      const res = await API.get('/courses/available');
+      setAvailableCourses(res.data || []);
     } catch (err) {
-      console.error('❌ Error fetching courses:', err);
+      console.error('❌ Error fetching available courses:', err);
     } finally {
       setLoading(false);
     }
@@ -44,6 +50,19 @@ export default function Courses() {
       setMyCourses(res.data || []);
     } catch (err) {
       console.error('❌ Error fetching my courses:', err);
+    }
+  }
+
+  // Fetch all courses (PL / lecturers)
+  async function fetchAllCourses() {
+    setLoading(true);
+    try {
+      const res = await API.get('/courses');
+      setAllCourses(res.data || []);
+    } catch (err) {
+      console.error('❌ Error fetching courses:', err);
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -63,15 +82,9 @@ export default function Courses() {
       const res = await API.post('/courses', payload);
       alert('✅ Course added successfully');
 
-      // Add new course to state from backend response
-      const newCourse = res.data.course || {
-        id: res.data.id,
-        ...payload,
-        lecturers: ''
-      };
-      setCourses(prev => [...prev, newCourse]);
+      const newCourse = res.data.course || { id: res.data.id, ...payload, lecturers: '' };
+      setAllCourses(prev => [...prev, newCourse]);
 
-      // Reset form
       setForm({
         faculty_name: '',
         class_name: '',
@@ -92,6 +105,7 @@ export default function Courses() {
     try {
       await API.post('/student-courses/enroll', { course_id: courseId });
       alert('✅ Enrolled');
+      fetchAvailableCourses();
       fetchMyCourses();
     } catch (err) {
       alert(err.response?.data?.message || 'Error enrolling');
@@ -103,19 +117,21 @@ export default function Courses() {
     try {
       await API.delete(`/student-courses/unenroll/${courseId}`);
       alert('✅ Unenrolled');
+      fetchAvailableCourses();
       fetchMyCourses();
     } catch (err) {
       alert('Error unenrolling');
     }
   }
 
-  // Filter courses based on search input
-  const filteredCourses = courses.filter(c =>
-    c.course_name?.toLowerCase().includes(search.trim().toLowerCase()) ||
-    c.course_code?.toLowerCase().includes(search.trim().toLowerCase()) ||
-    c.class_name?.toLowerCase().includes(search.trim().toLowerCase()) ||
-    c.faculty_name?.toLowerCase().includes(search.trim().toLowerCase())
-  );
+  // Filter courses based on search
+  const filterCourses = (courses) =>
+    courses.filter(c =>
+      c.course_name?.toLowerCase().includes(search.trim().toLowerCase()) ||
+      c.course_code?.toLowerCase().includes(search.trim().toLowerCase()) ||
+      c.class_name?.toLowerCase().includes(search.trim().toLowerCase()) ||
+      c.faculty_name?.toLowerCase().includes(search.trim().toLowerCase())
+    );
 
   if (loading) return <div>Loading courses...</div>;
 
@@ -138,148 +154,144 @@ export default function Courses() {
       {role === 'pl' && (
         <form onSubmit={addCourse} className="mb-4">
           <div className="row g-2">
-            <div className="col-md-4">
-              <input
-                name="faculty_name"
-                value={form.faculty_name}
-                onChange={onChange}
-                className="form-control"
-                placeholder="Faculty"
-                required
-              />
-            </div>
-            <div className="col-md-4">
-              <input
-                name="class_name"
-                value={form.class_name}
-                onChange={onChange}
-                className="form-control"
-                placeholder="Class"
-                required
-              />
-            </div>
-            <div className="col-md-4">
-              <input
-                name="course_name"
-                value={form.course_name}
-                onChange={onChange}
-                className="form-control"
-                placeholder="Course Name"
-                required
-              />
-            </div>
-            <div className="col-md-4">
-              <input
-                name="course_code"
-                value={form.course_code}
-                onChange={onChange}
-                className="form-control"
-                placeholder="Course Code"
-                required
-              />
-            </div>
-            <div className="col-md-4">
-              <input
-                name="venue"
-                value={form.venue}
-                onChange={onChange}
-                className="form-control"
-                placeholder="Venue"
-              />
-            </div>
-            <div className="col-md-4">
-              <input
-                name="scheduled_time"
-                value={form.scheduled_time}
-                onChange={onChange}
-                className="form-control"
-                placeholder="Scheduled Time"
-              />
-            </div>
-            <div className="col-md-4">
-              <input
-                type="number"
-                name="total_registered"
-                value={form.total_registered}
-                onChange={onChange}
-                className="form-control"
-                placeholder="Total Registered"
-                min="0"
-              />
-            </div>
+            {['faculty_name','class_name','course_name','course_code','venue','scheduled_time','total_registered'].map(field => (
+              <div className="col-md-4" key={field}>
+                <input
+                  type={field === 'total_registered' ? 'number' : 'text'}
+                  name={field}
+                  value={form[field]}
+                  onChange={onChange}
+                  className="form-control"
+                  placeholder={field.replace('_',' ').toUpperCase()}
+                  min={field==='total_registered'?0:undefined}
+                  required={['faculty_name','class_name','course_name','course_code'].includes(field)}
+                />
+              </div>
+            ))}
           </div>
-          <button
-            className="btn btn-primary mt-2"
-            disabled={
-              !form.faculty_name ||
-              !form.class_name ||
-              !form.course_name ||
-              !form.course_code
-            }
-          >
-            Add Course
-          </button>
+          <button className="btn btn-primary mt-2">Add Course</button>
         </form>
       )}
 
-      {/* Courses Table */}
-      <table className="table table-striped">
-        <thead>
-          <tr>
-            <th>Course</th>
-            <th>Code</th>
-            <th>Class</th>
-            <th>Lecturers</th>
-            <th>Venue</th>
-            <th>Scheduled</th>
-            <th>Registered</th>
-            {role === 'student' && <th>Action</th>}
-          </tr>
-        </thead>
-        <tbody>
-          {filteredCourses.length === 0 ? (
-            <tr>
-              <td colSpan={role === 'student' ? 8 : 7} className="text-center">
-                No courses found.
-              </td>
-            </tr>
-          ) : (
-            filteredCourses.map(c => {
-              const enrolled = myCourses.some(mc => mc.id === c.id);
-              return (
-                <tr key={c.id}>
-                  <td>{c.course_name}</td>
-                  <td>{c.course_code}</td>
-                  <td>{c.class_name}</td>
-                  <td>{c.lecturers || 'Unassigned'}</td>
-                  <td>{c.venue}</td>
-                  <td>{c.scheduled_time}</td>
-                  <td>{c.total_registered}</td>
-                  {role === 'student' && (
-                    <td>
-                      {enrolled ? (
-                        <button
-                          className="btn btn-danger btn-sm"
-                          onClick={() => unenroll(c.id)}
-                        >
-                          Unenroll
-                        </button>
-                      ) : (
-                        <button
-                          className="btn btn-success btn-sm"
-                          onClick={() => enroll(c.id)}
-                        >
-                          Enroll
-                        </button>
-                      )}
-                    </td>
-                  )}
+      {/* Students: Available Courses */}
+      {role === 'student' && (
+        <>
+          <h5>Available Courses</h5>
+          <table className="table table-striped">
+            <thead>
+              <tr>
+                <th>Course</th>
+                <th>Code</th>
+                <th>Class</th>
+                <th>Lecturers</th>
+                <th>Venue</th>
+                <th>Scheduled</th>
+                <th>Registered</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filterCourses(availableCourses).length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="text-center">No available courses.</td>
                 </tr>
-              );
-            })
-          )}
-        </tbody>
-      </table>
+              ) : (
+                filterCourses(availableCourses).map(c => (
+                  <tr key={c.id}>
+                    <td>{c.course_name}</td>
+                    <td>{c.course_code}</td>
+                    <td>{c.class_name}</td>
+                    <td>{c.lecturers || 'Unassigned'}</td>
+                    <td>{c.venue}</td>
+                    <td>{c.scheduled_time}</td>
+                    <td>{c.total_registered}</td>
+                    <td>
+                      <button className="btn btn-success btn-sm" onClick={() => enroll(c.id)}>Enroll</button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+
+          <h5>My Courses</h5>
+          <table className="table table-striped">
+            <thead>
+              <tr>
+                <th>Course</th>
+                <th>Code</th>
+                <th>Class</th>
+                <th>Lecturers</th>
+                <th>Venue</th>
+                <th>Scheduled</th>
+                <th>Registered</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filterCourses(myCourses).length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="text-center">No enrolled courses.</td>
+                </tr>
+              ) : (
+                filterCourses(myCourses).map(c => (
+                  <tr key={c.id}>
+                    <td>{c.course_name}</td>
+                    <td>{c.course_code}</td>
+                    <td>{c.class_name}</td>
+                    <td>{c.lecturers || 'Unassigned'}</td>
+                    <td>{c.venue}</td>
+                    <td>{c.scheduled_time}</td>
+                    <td>{c.total_registered}</td>
+                    <td>
+                      <button className="btn btn-danger btn-sm" onClick={() => unenroll(c.id)}>Unenroll</button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </>
+      )}
+
+      {/* PL / Lecturer: All Courses */}
+      {(role === 'pl' || role === 'lecturer') && (
+        <>
+          <h5>All Courses</h5>
+          <table className="table table-striped">
+            <thead>
+              <tr>
+                <th>Course</th>
+                <th>Code</th>
+                <th>Class</th>
+                <th>Lecturers</th>
+                <th>Venue</th>
+                <th>Scheduled</th>
+                <th>Registered</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filterCourses(allCourses).length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="text-center">No courses found.</td>
+                </tr>
+              ) : (
+                filterCourses(allCourses).map(c => (
+                  <tr key={c.id}>
+                    <td>{c.course_name}</td>
+                    <td>{c.course_code}</td>
+                    <td>{c.class_name}</td>
+                    <td>{c.lecturers || 'Unassigned'}</td>
+                    <td>{c.venue}</td>
+                    <td>{c.scheduled_time}</td>
+                    <td>{c.total_registered}</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </>
+      )}
     </div>
   );
 }

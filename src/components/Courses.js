@@ -5,8 +5,9 @@ export default function Courses() {
   const [courses, setCourses] = useState([]);
   const [myCourses, setMyCourses] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState(""); // 🔍 NEW
+  const [search, setSearch] = useState(""); 
   const role = localStorage.getItem('role');
+
   const [form, setForm] = useState({
     faculty_name: '',
     class_name: '',
@@ -22,6 +23,7 @@ export default function Courses() {
     if (role === 'student') fetchMyCourses();
   }, []);
 
+  // Fetch all courses
   async function fetchCourses() {
     setLoading(true);
     try {
@@ -34,6 +36,7 @@ export default function Courses() {
     }
   }
 
+  // Fetch student's enrolled courses
   async function fetchMyCourses() {
     try {
       const res = await API.get('/student-courses/my');
@@ -43,15 +46,33 @@ export default function Courses() {
     }
   }
 
+  // Handle form input change
   function onChange(e) {
     setForm({ ...form, [e.target.name]: e.target.value });
   }
 
+  // Add a new course (PL only)
   async function addCourse(e) {
     e.preventDefault();
     try {
-      await API.post('/courses', form);
+      const res = await API.post('/courses', form);
       alert('✅ Course added successfully');
+
+      // Add new course to state immediately
+      const newCourse = {
+        id: res.data.id,
+        faculty_name: form.faculty_name,
+        class_name: form.class_name,
+        course_name: form.course_name,
+        course_code: form.course_code,
+        venue: form.venue || '',
+        scheduled_time: form.scheduled_time || '',
+        total_registered: form.total_registered || 0,
+        lecturers: '' // PL view
+      };
+      setCourses(prev => [...prev, newCourse]);
+
+      // Reset form
       setForm({
         faculty_name: '',
         class_name: '',
@@ -61,13 +82,13 @@ export default function Courses() {
         scheduled_time: '',
         total_registered: ''
       });
-      fetchCourses();
     } catch (err) {
       console.error('❌ Error adding course:', err);
       alert('Error adding course');
     }
   }
 
+  // Enroll student
   async function enroll(courseId) {
     try {
       await API.post('/student-courses/enroll', { course_id: courseId });
@@ -78,6 +99,7 @@ export default function Courses() {
     }
   }
 
+  // Unenroll student
   async function unenroll(courseId) {
     try {
       await API.delete(`/student-courses/unenroll/${courseId}`);
@@ -88,7 +110,7 @@ export default function Courses() {
     }
   }
 
-  // 🔍 filter
+  // Filter courses based on search
   const filteredCourses = courses.filter(c =>
     c.course_name?.toLowerCase().includes(search.toLowerCase()) ||
     c.course_code?.toLowerCase().includes(search.toLowerCase()) ||
@@ -102,7 +124,7 @@ export default function Courses() {
     <div>
       <h3>Courses</h3>
 
-      {/* 🔍 Search bar */}
+      {/* Search Bar */}
       <div className="mb-3">
         <input
           type="text"
@@ -113,7 +135,7 @@ export default function Courses() {
         />
       </div>
 
-      {/* Show Add Course form only for PL */}
+      {/* Add Course Form (PL Only) */}
       {role === 'pl' && (
         <form onSubmit={addCourse} className="mb-4">
           <div className="row g-2">
@@ -159,7 +181,7 @@ export default function Courses() {
         </thead>
         <tbody>
           {filteredCourses.length === 0 ? (
-            <tr><td colSpan="8" className="text-center">No courses found.</td></tr>
+            <tr><td colSpan={role === 'student' ? 8 : 7} className="text-center">No courses found.</td></tr>
           ) : (
             filteredCourses.map(c => {
               const enrolled = myCourses.some(mc => mc.id === c.id);

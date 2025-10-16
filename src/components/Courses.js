@@ -5,7 +5,7 @@ export default function Courses() {
   const [courses, setCourses] = useState([]);
   const [myCourses, setMyCourses] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState(""); 
+  const [search, setSearch] = useState('');
   const role = localStorage.getItem('role');
 
   const [form, setForm] = useState({
@@ -18,6 +18,7 @@ export default function Courses() {
     total_registered: ''
   });
 
+  // Fetch courses on mount
   useEffect(() => {
     fetchCourses();
     if (role === 'student') fetchMyCourses();
@@ -46,7 +47,7 @@ export default function Courses() {
     }
   }
 
-  // Handle form input change
+  // Handle form input changes
   function onChange(e) {
     setForm({ ...form, [e.target.name]: e.target.value });
   }
@@ -55,20 +56,18 @@ export default function Courses() {
   async function addCourse(e) {
     e.preventDefault();
     try {
-      const res = await API.post('/courses', form);
+      const payload = {
+        ...form,
+        total_registered: Number(form.total_registered) || 0
+      };
+      const res = await API.post('/courses', payload);
       alert('✅ Course added successfully');
 
-      // Add new course to state immediately
-      const newCourse = {
+      // Add new course to state from backend response
+      const newCourse = res.data.course || {
         id: res.data.id,
-        faculty_name: form.faculty_name,
-        class_name: form.class_name,
-        course_name: form.course_name,
-        course_code: form.course_code,
-        venue: form.venue || '',
-        scheduled_time: form.scheduled_time || '',
-        total_registered: form.total_registered || 0,
-        lecturers: '' // PL view
+        ...payload,
+        lecturers: ''
       };
       setCourses(prev => [...prev, newCourse]);
 
@@ -110,12 +109,12 @@ export default function Courses() {
     }
   }
 
-  // Filter courses based on search
+  // Filter courses based on search input
   const filteredCourses = courses.filter(c =>
-    c.course_name?.toLowerCase().includes(search.toLowerCase()) ||
-    c.course_code?.toLowerCase().includes(search.toLowerCase()) ||
-    c.class_name?.toLowerCase().includes(search.toLowerCase()) ||
-    c.faculty_name?.toLowerCase().includes(search.toLowerCase())
+    c.course_name?.toLowerCase().includes(search.trim().toLowerCase()) ||
+    c.course_code?.toLowerCase().includes(search.trim().toLowerCase()) ||
+    c.class_name?.toLowerCase().includes(search.trim().toLowerCase()) ||
+    c.faculty_name?.toLowerCase().includes(search.trim().toLowerCase())
   );
 
   if (loading) return <div>Loading courses...</div>;
@@ -131,37 +130,95 @@ export default function Courses() {
           className="form-control"
           placeholder="Search by course, code, class or faculty..."
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={e => setSearch(e.target.value)}
         />
       </div>
 
-      {/* Add Course Form (PL Only) */}
+      {/* Add Course Form (PL only) */}
       {role === 'pl' && (
         <form onSubmit={addCourse} className="mb-4">
           <div className="row g-2">
             <div className="col-md-4">
-              <input name="faculty_name" value={form.faculty_name} onChange={onChange} className="form-control" placeholder="Faculty" required />
+              <input
+                name="faculty_name"
+                value={form.faculty_name}
+                onChange={onChange}
+                className="form-control"
+                placeholder="Faculty"
+                required
+              />
             </div>
             <div className="col-md-4">
-              <input name="class_name" value={form.class_name} onChange={onChange} className="form-control" placeholder="Class" required />
+              <input
+                name="class_name"
+                value={form.class_name}
+                onChange={onChange}
+                className="form-control"
+                placeholder="Class"
+                required
+              />
             </div>
             <div className="col-md-4">
-              <input name="course_name" value={form.course_name} onChange={onChange} className="form-control" placeholder="Course Name" required />
+              <input
+                name="course_name"
+                value={form.course_name}
+                onChange={onChange}
+                className="form-control"
+                placeholder="Course Name"
+                required
+              />
             </div>
             <div className="col-md-4">
-              <input name="course_code" value={form.course_code} onChange={onChange} className="form-control" placeholder="Course Code" required />
+              <input
+                name="course_code"
+                value={form.course_code}
+                onChange={onChange}
+                className="form-control"
+                placeholder="Course Code"
+                required
+              />
             </div>
             <div className="col-md-4">
-              <input name="venue" value={form.venue} onChange={onChange} className="form-control" placeholder="Venue" />
+              <input
+                name="venue"
+                value={form.venue}
+                onChange={onChange}
+                className="form-control"
+                placeholder="Venue"
+              />
             </div>
             <div className="col-md-4">
-              <input name="scheduled_time" value={form.scheduled_time} onChange={onChange} className="form-control" placeholder="Scheduled Time" />
+              <input
+                name="scheduled_time"
+                value={form.scheduled_time}
+                onChange={onChange}
+                className="form-control"
+                placeholder="Scheduled Time"
+              />
             </div>
             <div className="col-md-4">
-              <input type="number" name="total_registered" value={form.total_registered} onChange={onChange} className="form-control" placeholder="Total Registered" min="0" />
+              <input
+                type="number"
+                name="total_registered"
+                value={form.total_registered}
+                onChange={onChange}
+                className="form-control"
+                placeholder="Total Registered"
+                min="0"
+              />
             </div>
           </div>
-          <button className="btn btn-primary mt-2">Add Course</button>
+          <button
+            className="btn btn-primary mt-2"
+            disabled={
+              !form.faculty_name ||
+              !form.class_name ||
+              !form.course_name ||
+              !form.course_code
+            }
+          >
+            Add Course
+          </button>
         </form>
       )}
 
@@ -181,7 +238,11 @@ export default function Courses() {
         </thead>
         <tbody>
           {filteredCourses.length === 0 ? (
-            <tr><td colSpan={role === 'student' ? 8 : 7} className="text-center">No courses found.</td></tr>
+            <tr>
+              <td colSpan={role === 'student' ? 8 : 7} className="text-center">
+                No courses found.
+              </td>
+            </tr>
           ) : (
             filteredCourses.map(c => {
               const enrolled = myCourses.some(mc => mc.id === c.id);
@@ -197,9 +258,19 @@ export default function Courses() {
                   {role === 'student' && (
                     <td>
                       {enrolled ? (
-                        <button className="btn btn-danger btn-sm" onClick={() => unenroll(c.id)}>Unenroll</button>
+                        <button
+                          className="btn btn-danger btn-sm"
+                          onClick={() => unenroll(c.id)}
+                        >
+                          Unenroll
+                        </button>
                       ) : (
-                        <button className="btn btn-success btn-sm" onClick={() => enroll(c.id)}>Enroll</button>
+                        <button
+                          className="btn btn-success btn-sm"
+                          onClick={() => enroll(c.id)}
+                        >
+                          Enroll
+                        </button>
                       )}
                     </td>
                   )}
